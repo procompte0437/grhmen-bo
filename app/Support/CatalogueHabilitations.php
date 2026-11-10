@@ -66,6 +66,7 @@ class CatalogueHabilitations
             ]],
 
             ['code' => 'ETABLISSEMENTS', 'libelle' => 'Établissements', 'groupe' => 'Pilotage', 'route' => '/etablissements', 'icone' => 'ecole', 'gestion' => [
+                'VOIR_TOUS_ETABLISSEMENTS' => 'Voir tous les établissements du ministère',
                 'ETAB_CREER' => 'Créer un établissement',
                 'ETAB_MODIFIER' => 'Modifier un établissement',
                 'ETAB_SUPPRIMER' => 'Supprimer un établissement',
@@ -114,9 +115,9 @@ class CatalogueHabilitations
                 'options' => [
                     'TABLEAU_BORD', 'PERSONNEL', 'AGENT_CREER', 'AGENT_MODIFIER', 'AGENT_SUPPRIMER', 'AGENT_EXPORTER', 'AGENT_CREER_COMPTE',
                     'AFFECTATIONS', 'AFFECTATION_CREER', 'AFFECTATION_MODIFIER', 'AFFECTATION_ANNULER',
-                    'PRISES_SERVICE', 'PRISE_SERVICE_CONFIRMER', 'DEBUTS_COURS', 'PRESENCES', 'PRESENCE_VALIDER',
+                    'PRISES_SERVICE', 'PRISE_SERVICE_ENREGISTRER', 'PRISE_SERVICE_CONFIRMER', 'DEBUTS_COURS', 'PRESENCES', 'PRESENCE_VALIDER',
                     'CESSATIONS', 'CESSATION_SIGNALER', 'CESSATION_GENERER', 'CESSATION_VALIDER', 'CESSATION_ANNULER',
-                    'CONGES', 'CONGE_APPROUVER', 'ETABLISSEMENTS', 'ETAB_CREER', 'ETAB_MODIFIER',
+                    'CONGES', 'CONGE_APPROUVER', 'ETABLISSEMENTS', 'VOIR_TOUS_ETABLISSEMENTS', 'ETAB_CREER', 'ETAB_MODIFIER',
                     'RAPPORTS', 'RAPPORT_EXPORTER', 'REFERENTIELS', 'JOURNAL',
                 ],
             ],
@@ -128,8 +129,8 @@ class CatalogueHabilitations
                 'options' => [
                     'TABLEAU_BORD', 'PERSONNEL', 'AGENT_CREER', 'AGENT_MODIFIER', 'AGENT_EXPORTER', 'AGENT_CREER_COMPTE',
                     'AFFECTATIONS', 'AFFECTATION_CREER', 'AFFECTATION_MODIFIER',
-                    'PRISES_SERVICE', 'DEBUTS_COURS', 'PRESENCES', 'CESSATIONS', 'CESSATION_SIGNALER', 'CESSATION_GENERER',
-                    'CONGES', 'ETABLISSEMENTS', 'RAPPORTS', 'RAPPORT_EXPORTER',
+                    'PRISES_SERVICE', 'PRISE_SERVICE_ENREGISTRER', 'PRISE_SERVICE_CONFIRMER', 'DEBUTS_COURS', 'PRESENCES', 'CESSATIONS', 'CESSATION_SIGNALER', 'CESSATION_GENERER',
+                    'CONGES', 'ETABLISSEMENTS', 'VOIR_TOUS_ETABLISSEMENTS', 'RAPPORTS', 'RAPPORT_EXPORTER',
                 ],
             ],
             'DAP' => [

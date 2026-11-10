@@ -12,6 +12,9 @@ class Agent extends Model
 {
     use SoftDeletes;
 
+    /** Limite d'âge du départ à la retraite, en années. */
+    public const AGE_LIMITE_RETRAITE = 62;
+
     public const CATEGORIES = [
         'enseignant_primaire' => 'Enseignant du primaire',
         'enseignant_secondaire' => 'Enseignant du secondaire',

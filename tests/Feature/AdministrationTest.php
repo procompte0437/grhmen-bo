@@ -99,7 +99,8 @@ class AdministrationTest extends GrhmenTestCase
         $this->connecter($this->utilisateur('ENSEIGNANT', $this->lycee, $agent));
 
         $r = $this->getJson('/api/v1/listes')->assertOk();
-        $this->assertCount(9, $r->json('provinces'));
+        $this->assertCount(1, $r->json('provinces'));
+        $this->assertSame($this->lycee->province_id, $r->json('provinces.0.id'));
         $this->assertCount(1, $r->json('etablissements'), 'Un enseignant ne voit que son établissement.');
         $this->assertArrayHasKey('types_cessation', $r->json('enums'));
     }
@@ -116,7 +117,7 @@ class AdministrationTest extends GrhmenTestCase
 
     public function test_rapport_de_synthese(): void
     {
-        $this->agentEnService($this->lycee, ['date_naissance' => now()->subYears(60)->toDateString()]);
+        $this->agentEnService($this->lycee, ['date_naissance' => now()->subYears(62)->toDateString()]);
         $this->agentEnService($this->lyceeAutreProvince, ['sexe' => 'M']);
         $this->connecter($this->utilisateur('DRH'));
 

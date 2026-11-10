@@ -27,10 +27,11 @@ class TableauBordController extends Controller
             return response()->json(['type' => 'personnel'] + $this->personnel($user));
         }
 
-        $agents = Perimetre::filtrer(Agent::query(), $user, 'etablissement_id', 'id');
+        $agents = Perimetre::selonEtablissement(Agent::query(), $user, 'etablissement_id', 'id');
         $actifs = (clone $agents)->where('statut', 'actif');
-        $aujourdhui = now()->toDateString();
-        $presencesJour = Perimetre::filtrer(Presence::query(), $user)->where('date', $aujourdhui);
+        // « Aujourd'hui », ou la dernière journée de l'année consultée si elle est terminée.
+        $aujourdhui = \App\Support\AnneeConsultee::dateReference()->toDateString();
+        $presencesJour = Perimetre::selonEtablissement(Presence::query(), $user)->where('date', $aujourdhui);
         $effectifActif = (clone $actifs)->count();
         $presentsJour = (clone $presencesJour)->whereIn('statut', ['present', 'retard', 'mission'])->count();
 
@@ -40,12 +41,12 @@ class TableauBordController extends Controller
 
         // Évolution des présences sur les 10 derniers jours ouvrés.
         $jours = collect();
-        for ($d = now()->copy(); $jours->count() < 10; $d->subDay()) {
+        for ($d = \App\Support\AnneeConsultee::dateReference(); $jours->count() < 10; $d->subDay()) {
             if (! $d->isWeekend()) {
                 $jours->prepend($d->toDateString());
             }
         }
-        $presences10 = Perimetre::filtrer(Presence::query(), $user)->whereIn('date', $jours)
+        $presences10 = Perimetre::selonEtablissement(Presence::query(), $user)->whereIn('date', $jours)
             ->selectRaw('date, statut, COUNT(*) as total')->groupBy('date', 'statut')->get();
         $evolution = $jours->map(function ($jour) use ($presences10) {
             $l = $presences10->filter(fn ($p) => substr((string) $p->date, 0, 10) === $jour);
@@ -61,11 +62,13 @@ class TableauBordController extends Controller
             ];
         });
 
-        $enAttentePs = Perimetre::filtrer(Affectation::query(), $user)->where('statut', 'en_attente_prise_service');
+        $enAttentePs = Perimetre::selonEtablissement(Affectation::query(), $user)->where('statut', 'en_attente_prise_service');
 
         return response()->json([
             'type' => 'gestion',
-            'annee_scolaire' => AnneeScolaire::active()?->libelle,
+            'annee_scolaire' => \App\Support\AnneeConsultee::get()?->libelle,
+            'annee_active' => \App\Support\AnneeConsultee::estActive(),
+            'date_reference' => $aujourdhui,
             'indicateurs' => [
                 'effectif_total' => (clone $agents)->count(),
                 'effectif_actif' => $effectifActif,
@@ -79,8 +82,8 @@ class TableauBordController extends Controller
                 'taux_presence_jour' => $effectifActif ? round($presentsJour * 100 / $effectifActif, 1) : 0,
                 'affectations_en_attente' => (clone $enAttentePs)->count(),
                 'non_prise_service_30j' => (clone $enAttentePs)->where('date_effet', '<=', now()->subDays(30)->toDateString())->count(),
-                'cessations_a_valider' => Perimetre::filtrer(CessationService::query(), $user)->where('statut', 'signalee')->count(),
-                'conges_en_cours' => Perimetre::filtrer(Conge::query(), $user)->where('statut', 'approuvee')
+                'cessations_a_valider' => Perimetre::selonEtablissement(CessationService::query(), $user)->where('statut', 'signalee')->count(),
+                'conges_en_cours' => Perimetre::selonEtablissement(Conge::query(), $user)->where('statut', 'approuvee')
                     ->where('date_debut', '<=', $aujourdhui)->where('date_fin', '>=', $aujourdhui)->count(),
             ],
             'repartition' => [
@@ -90,7 +93,7 @@ class TableauBordController extends Controller
             ],
             'evolution_presences' => $evolution,
             'a_traiter' => $this->compteurs($user),
-            'dernieres_affectations' => Perimetre::filtrer(Affectation::query(), $user)
+            'dernieres_affectations' => \App\Support\AnneeConsultee::dansAnnee(Perimetre::selonEtablissement(Affectation::query(), $user), 'date_effet')
                 ->with(['agent:id,nom,prenom,matricule', 'etablissement:id,nom'])->latest()->limit(6)->get(),
         ]);
     }
@@ -100,21 +103,21 @@ class TableauBordController extends Controller
     {
         $c = [];
         if ($user->aOption('PRISE_SERVICE_CONFIRMER')) {
-            $c['PRISES_SERVICE'] = Perimetre::filtrer(PriseService::query(), $user)->where('statut', 'declaree')->count();
+            $c['PRISES_SERVICE'] = Perimetre::selonEtablissement(PriseService::query(), $user)->where('statut', 'declaree')->count();
         }
         if ($user->aOption('DEBUT_COURS_CONFIRMER')) {
-            $c['DEBUTS_COURS'] = Perimetre::filtrer(DebutCours::query(), $user)->where('statut', 'declare')->count();
+            $c['DEBUTS_COURS'] = Perimetre::selonEtablissement(DebutCours::query(), $user)->where('statut', 'declare')->count();
         }
         if ($user->aOption('PRESENCE_VALIDER')) {
-            $c['PRESENCES'] = Perimetre::filtrer(Presence::query(), $user)->where('validation', 'en_attente')->count();
+            $c['PRESENCES'] = Perimetre::selonEtablissement(Presence::query(), $user)->where('validation', 'en_attente')->count();
         }
         if ($user->aOption('CESSATION_VALIDER')) {
-            $c['CESSATIONS'] = Perimetre::filtrer(CessationService::query(), $user)->where('statut', 'signalee')->count();
+            $c['CESSATIONS'] = Perimetre::selonEtablissement(CessationService::query(), $user)->where('statut', 'signalee')->count();
         }
         if ($user->aOption('CONGE_AVIS')) {
-            $c['CONGES'] = Perimetre::filtrer(Conge::query(), $user)->where('statut', 'soumise')->count();
+            $c['CONGES'] = Perimetre::selonEtablissement(Conge::query(), $user)->where('statut', 'soumise')->count();
         } elseif ($user->aOption('CONGE_APPROUVER')) {
-            $c['CONGES'] = Perimetre::filtrer(Conge::query(), $user)->whereIn('statut', ['soumise', 'avis_favorable', 'avis_defavorable'])->count();
+            $c['CONGES'] = Perimetre::selonEtablissement(Conge::query(), $user)->whereIn('statut', ['soumise', 'avis_favorable', 'avis_defavorable'])->count();
         }
         if ($user->aOption('PRISE_SERVICE_DECLARER') && $user->agent_id) {
             $c['MES_SERVICES'] = Affectation::where('agent_id', $user->agent_id)->where('statut', 'en_attente_prise_service')

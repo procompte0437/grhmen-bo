@@ -24,7 +24,11 @@ class AffectationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = Affectation::query()->with($this->relations);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
+        if ($fin = \App\Support\AnneeConsultee::fin()) {
+            $debutAnnee = \App\Support\AnneeConsultee::debut();
+            $q->where('date_effet', '<=', $fin)->where(fn ($w) => $w->where('date_effet', '>=', $debutAnnee)->orWhereIn('statut', ['en_attente_prise_service', 'en_service']));
+        }
         Recherche::appliquer($q, ['numero_decision', 'agent.nom', 'agent.prenom', 'agent.matricule'], $request->query('q'));
 
         foreach (['statut', 'nature', 'etablissement_id', 'agent_id', 'annee_scolaire_id'] as $f) {
@@ -47,6 +51,7 @@ class AffectationController extends Controller
     public function show(Request $request, Affectation $affectation): JsonResponse
     {
         Perimetre::exiger($request->user(), $affectation->etablissement_id, $affectation->agent_id);
+        Perimetre::exigerConsulte($request->user(), $affectation->etablissement_id);
 
         return response()->json(['data' => $affectation->load(array_merge($this->relations, ['prisesService', 'auteur:id,name']))]);
     }
@@ -55,6 +60,11 @@ class AffectationController extends Controller
     {
         $donnees = $this->valider($request);
         $agent = Agent::findOrFail($donnees['agent_id']);
+        Perimetre::exiger($request->user(), (int) $donnees['etablissement_id']);
+        if ($agent->etablissement_id) {
+            Perimetre::exiger($request->user(), (int) $agent->etablissement_id, $agent->id);
+            Perimetre::exigerConsulte($request->user(), (int) $agent->etablissement_id);
+        }
 
         if (! in_array($agent->statut, ['actif', 'disponibilite', 'detache'], true)) {
             return response()->json(['message' => "Impossible d'affecter un agent au statut « {$agent->statut_libelle} »."], 422);
@@ -134,6 +144,11 @@ class AffectationController extends Controller
                 $precedente->update(['statut' => 'en_service']);
             }
             $agent->update(['etablissement_id' => $affectation->etablissement_origine_id]);
+            $affectation->loadMissing('etablissementOrigine');
+            $agent->utilisateur?->update([
+                'etablissement_id' => $affectation->etablissement_origine_id,
+                'province_id' => $affectation->etablissementOrigine?->province_id,
+            ]);
         });
 
         JournalActivite::consigner('annulation', 'affectations', "Affectation n°{$affectation->id} annulée : $motif", $affectation);

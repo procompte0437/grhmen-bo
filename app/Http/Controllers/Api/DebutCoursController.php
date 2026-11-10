@@ -20,7 +20,10 @@ class DebutCoursController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = DebutCours::query()->with($this->relations);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
+        if ($annee = \App\Support\AnneeConsultee::get()) {
+            $q->where(fn ($w) => $w->where('annee_scolaire_id', $annee->id)->orWhere(fn ($x) => $x->whereNull('annee_scolaire_id')->whereBetween('date_debut', [\App\Support\AnneeConsultee::debut(), \App\Support\AnneeConsultee::fin()])));
+        }
         Recherche::appliquer($q, ['classes', 'agent.nom', 'agent.prenom', 'agent.matricule'], $request->query('q'));
         foreach (['statut', 'etablissement_id', 'agent_id'] as $f) {
             if ($v = $request->query($f)) {
@@ -34,14 +37,14 @@ class DebutCoursController extends Controller
     /** Enseignants en service n'ayant pas encore commencé les cours sur l'année active. */
     public function sansDebut(Request $request): JsonResponse
     {
-        $annee = AnneeScolaire::active();
+        $annee = \App\Support\AnneeConsultee::get();
         $q = Agent::query()->with(['etablissement:id,nom', 'discipline:id,libelle'])
             ->whereIn('categorie', ['enseignant_primaire', 'enseignant_secondaire'])
             ->where('statut', 'actif')
             ->whereHas('affectations', fn ($a) => $a->where('statut', 'en_service'))
             ->whereDoesntHave('debutsCours', fn ($d) => $d->whereIn('statut', ['declare', 'confirme'])
                 ->when($annee, fn ($w) => $w->where('annee_scolaire_id', $annee->id)));
-        Perimetre::filtrer($q, $request->user(), 'etablissement_id', 'id');
+        Perimetre::selonEtablissement($q, $request->user(), 'etablissement_id', 'id');
 
         return response()->json(['data' => $q->orderBy('nom')->limit(500)->get()]);
     }

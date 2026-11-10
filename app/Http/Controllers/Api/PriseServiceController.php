@@ -22,7 +22,8 @@ class PriseServiceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = PriseService::query()->with($this->relations);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
+        \App\Support\AnneeConsultee::dansAnnee($q, 'date_prise_service');
         Recherche::appliquer($q, ['numero', 'agent.nom', 'agent.prenom', 'agent.matricule'], $request->query('q'));
         foreach (['statut', 'etablissement_id', 'agent_id'] as $f) {
             if ($v = $request->query($f)) {
@@ -36,6 +37,7 @@ class PriseServiceController extends Controller
     public function show(Request $request, PriseService $priseService): JsonResponse
     {
         Perimetre::exiger($request->user(), $priseService->etablissement_id, $priseService->agent_id);
+        Perimetre::exigerConsulte($request->user(), $priseService->etablissement_id);
 
         return response()->json(['data' => $priseService->load(array_merge($this->relations, ['agent.grade:id,code,libelle', 'agent.fonction:id,libelle', 'agent.discipline:id,libelle', 'etablissement.province:id,nom']))]);
     }
@@ -55,7 +57,7 @@ class PriseServiceController extends Controller
         return $this->enregistrerPour($affectation, $donnees, $request);
     }
 
-    /** Le chef d'établissement ou le censeur enregistre la prise de service d'un agent. */
+    /** L'administrateur, la DRH, le gestionnaire RH, le chef d'établissement ou le censeur enregistre la prise de service d'un agent. */
     public function enregistrer(Request $request): JsonResponse
     {
         $donnees = $request->validate([

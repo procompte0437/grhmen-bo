@@ -22,7 +22,7 @@ class AgentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = Agent::query()->with($this->relationsListe)->withExists('utilisateur as a_un_compte');
-        Perimetre::filtrer($q, $request->user(), 'etablissement_id', 'id');
+        Perimetre::selonEtablissement($q, $request->user(), 'etablissement_id', 'id');
         Recherche::appliquer($q, ['nom', 'prenom', 'matricule', 'telephone', 'email'], $request->query('q'));
 
         foreach (['categorie', 'statut', 'etablissement_id', 'discipline_id', 'fonction_id', 'sexe', 'grade_id'] as $f) {
@@ -46,6 +46,7 @@ class AgentController extends Controller
     public function show(Request $request, Agent $agent): JsonResponse
     {
         Perimetre::exiger($request->user(), $agent->etablissement_id, $agent->id);
+        Perimetre::exigerConsulte($request->user(), $agent->etablissement_id);
 
         return response()->json(['data' => $this->dossier($agent)]);
     }
@@ -79,7 +80,7 @@ class AgentController extends Controller
     public function store(Request $request): JsonResponse
     {
         $donnees = $this->valider($request);
-        if ($request->user()->portee() !== 'national' && ! empty($donnees['etablissement_id'])) {
+        if (! empty($donnees['etablissement_id'])) {
             Perimetre::exiger($request->user(), (int) $donnees['etablissement_id']);
         }
         $agent = Agent::create($donnees);

@@ -34,7 +34,7 @@ class DemoSeeder extends Seeder
 
     protected int $compteurMatricule = 100200;
 
-    protected $ref;
+    protected $ref = null;
 
     public function run(): void
     {
@@ -146,9 +146,10 @@ class DemoSeeder extends Seeder
 
         // ---- Présences des 15 derniers jours ouvrés (hors aujourd'hui)
         $this->presences($lnlm, $agentsComptes);
+        $this->historiqueAnneePrecedente($admin);
 
         // ---- Cessations de service
-        $retraite = $this->creerAgent($etabs['LJAA'], ['categorie' => 'enseignant_secondaire', 'discipline' => 'HG', 'date_naissance' => now()->subYears(60)->subMonths(2)->toDateString()]);
+        $retraite = $this->creerAgent($etabs['LJAA'], ['categorie' => 'enseignant_secondaire', 'discipline' => 'HG', 'date_naissance' => now()->subYears(63)->subMonths(2)->toDateString()]);
         $this->carriere($retraite, $annee, $admin);
         $c = CessationService::create(['agent_id' => $retraite->id, 'etablissement_id' => $retraite->etablissement_id, 'affectation_id' => $retraite->affectations()->first()->id,
             'numero' => 'CS-'.now()->year.'-DEMO01', 'type' => 'retraite', 'date_cessation' => now()->subDays(20)->toDateString(),
@@ -171,7 +172,67 @@ class DemoSeeder extends Seeder
         Conge::create(['agent_id' => $collegues[1]->id, 'etablissement_id' => $lnlm->id, 'type' => 'exceptionnel', 'date_debut' => now()->addDays(5)->toDateString(),
             'date_fin' => now()->addDays(7)->toDateString(), 'nombre_jours' => 3, 'motif' => 'Obsèques d\'un parent à Oyem.', 'statut' => 'avis_favorable', 'avis_par' => $admin->id, 'avis_chef' => 'Cours rattrapés par un collègue.']);
 
+        $this->assurerAgentsLimiteAge();
+
         JournalActivite::create(['user_id' => $admin->id, 'action' => 'initialisation', 'module' => 'systeme', 'description' => 'Initialisation des données de démonstration GRHMEN']);
+    }
+
+    /**
+     * Agents encore en activité, déjà à la limite d'âge (62 ans) ou qui l'atteignent dans l'année.
+     * Idempotent : on peut le relancer sur une base déjà peuplée.
+     */
+    public function assurerAgentsLimiteAge(): int
+    {
+        $this->ref ??= [
+            'province' => Province::pluck('id', 'code'),
+            'corps' => Corps::pluck('id', 'code'),
+            'grade' => Grade::pluck('id', 'code'),
+            'discipline' => Discipline::pluck('id', 'code'),
+            'fonction' => Fonction::pluck('id', 'code'),
+            'profil' => Profil::pluck('id', 'code'),
+        ];
+        $annee = AnneeScolaire::active();
+        $admin = User::where('email', 'admin@grhmen.ga')->first();
+        if (! $annee || ! $admin) {
+            return 0;
+        }
+
+        $profils = [
+            ['R62001', 'LNLM', ['nom' => 'NZIENGUI', 'prenom' => 'Huguette', 'sexe' => 'F', 'categorie' => 'enseignant_secondaire', 'discipline' => 'FR', 'fonction' => 'ENS', 'corps' => 'PLC', 'grade' => 'A1', 'date_naissance' => now()->subYears(63)->subMonths(4)->toDateString()]],
+            ['R62002', 'LDD', ['nom' => 'MABIKA', 'prenom' => 'Serge', 'sexe' => 'M', 'categorie' => 'enseignant_secondaire', 'discipline' => 'MATH', 'fonction' => 'ENS', 'corps' => 'PCEG', 'grade' => 'A2', 'date_naissance' => now()->subYears(62)->subMonths(1)->toDateString()]],
+            ['R62003', 'EP-POTOS', ['nom' => 'ENGONGA', 'prenom' => 'Gisèle', 'sexe' => 'F', 'categorie' => 'enseignant_primaire', 'discipline' => 'POLY', 'fonction' => 'ENS_TIT', 'corps' => 'INST', 'grade' => 'B1', 'date_naissance' => now()->subYears(62)->toDateString()]],
+            ['R62004', 'LJAA', ['nom' => 'IBINGA', 'prenom' => 'Patrick', 'sexe' => 'M', 'categorie' => 'enseignant_secondaire', 'discipline' => 'HG', 'fonction' => 'ENS', 'corps' => 'PLC', 'grade' => 'A1', 'date_naissance' => now()->subYears(61)->subMonths(6)->toDateString()]],
+            ['R62005', 'DGRH', ['nom' => 'ASSELE', 'prenom' => 'Judith', 'sexe' => 'F', 'categorie' => 'administratif', 'fonction' => 'AGENT_ADM', 'corps' => 'ADM', 'grade' => 'A1', 'date_naissance' => now()->subYears(61)->subMonths(2)->toDateString()]],
+        ];
+
+        $crees = 0;
+        foreach ($profils as [$matricule, $codeEtab, $attrs]) {
+            if (Agent::where('matricule', $matricule)->exists()) {
+                continue;
+            }
+            $etab = Etablissement::where('code', $codeEtab)->first();
+            if (! $etab) {
+                continue;
+            }
+            $agent = $this->creerAgent($etab, $attrs + [
+                'matricule' => $matricule,
+                'date_recrutement' => now()->subYears(36)->toDateString(),
+            ]);
+            $this->carriere($agent, $annee, $admin);
+            $aff = $agent->affectations()->where('statut', 'en_service')->first();
+            if ($agent->estEnseignant() && $aff && ! DebutCours::where('agent_id', $agent->id)->exists()) {
+                DebutCours::create([
+                    'agent_id' => $agent->id, 'etablissement_id' => $agent->etablissement_id, 'affectation_id' => $aff->id,
+                    'discipline_id' => $agent->discipline_id, 'annee_scolaire_id' => $annee->id,
+                    'date_debut' => Carbon::parse($annee->date_debut)->addDays(6)->toDateString(),
+                    'classes' => $this->classes($agent), 'volume_horaire' => $agent->categorie === 'enseignant_primaire' ? 30 : 18,
+                    'statut' => 'confirme', 'traite_par' => $admin->id, 'date_traitement' => Carbon::parse($annee->date_debut)->addDays(8),
+                ]);
+            }
+            $crees++;
+        }
+
+        return $crees;
     }
 
     protected function etablissements(): array
@@ -256,7 +317,7 @@ class DemoSeeder extends Seeder
         $this->compteurMatricule += mt_rand(3, 47);
 
         return Agent::create([
-            'matricule' => $this->compteurMatricule.chr(65 + mt_rand(0, 25)),
+            'matricule' => $attrs['matricule'] ?? ($this->compteurMatricule.chr(65 + mt_rand(0, 25))),
             'nom' => $nom, 'prenom' => $prenom, 'sexe' => $sexe,
             'date_naissance' => $naissance,
             'lieu_naissance' => ['Libreville', 'Oyem', 'Franceville', 'Port-Gentil', 'Lambaréné', 'Mouila', 'Tchibanga', 'Makokou', 'Koulamoutou', 'Bitam'][mt_rand(0, 9)],
@@ -358,6 +419,61 @@ class DemoSeeder extends Seeder
         $choix = array_rand($niveaux, 3);
 
         return implode(', ', array_map(fn ($i) => $niveaux[$i].' '.chr(65 + mt_rand(0, 3)), $choix));
+    }
+
+    /** Historique de l'année scolaire précédente : présences des 4 dernières semaines, congés et cessations. */
+    protected function historiqueAnneePrecedente(User $admin): void
+    {
+        $annee = AnneeScolaire::where('active', false)->orderByDesc('date_debut')->first();
+        if (! $annee) {
+            return;
+        }
+        $fin = Carbon::parse($annee->date_fin);
+        $jours = [];
+        for ($d = $fin->copy(); count($jours) < 20; $d->subDay()) {
+            if (\App\Support\Calendrier::estOuvre($d)) {
+                $jours[] = $d->toDateString();
+            }
+        }
+        $agents = Agent::where('statut', 'actif')->whereNotNull('etablissement_id')
+            ->whereHas('affectations', fn ($a) => $a->where('statut', 'en_service')->where('date_effet', '<=', $jours[count($jours) - 1]))
+            ->get(['id', 'etablissement_id']);
+        $maintenant = now();
+        $lignes = [];
+        foreach ($agents as $agent) {
+            foreach ($jours as $jour) {
+                $t = mt_rand(1, 100);
+                $statut = $t <= 80 ? 'present' : ($t <= 89 ? 'retard' : ($t <= 96 ? 'absent' : 'absence_justifiee'));
+                $absent = in_array($statut, ['absent', 'absence_justifiee'], true);
+                $lignes[] = [
+                    'agent_id' => $agent->id, 'etablissement_id' => $agent->etablissement_id, 'date' => $jour,
+                    'heure_arrivee' => $absent ? null : ($statut === 'retard' ? sprintf('08:%02d:00', mt_rand(0, 40)) : sprintf('07:%02d:00', mt_rand(5, 40))),
+                    'heure_depart' => $absent ? null : sprintf('%02d:%02d:00', mt_rand(15, 17), mt_rand(0, 59)),
+                    'statut' => $statut, 'mode' => $absent ? 'saisie' : 'pointage', 'validation' => 'validee',
+                    'observations' => $statut === 'absence_justifiee' ? 'Certificat médical' : null,
+                    'created_at' => $maintenant, 'updated_at' => $maintenant,
+                ];
+            }
+        }
+        foreach (array_chunk($lignes, 500) as $paquet) {
+            DB::table('presences')->insert($paquet);
+        }
+
+        // Quelques congés et cessations datés de l'année précédente.
+        foreach ($agents->random(min(6, $agents->count())) as $i => $agent) {
+            $debut = Carbon::parse($annee->date_debut)->addMonths(2 + $i)->startOfWeek();
+            Conge::create(['agent_id' => $agent->id, 'etablissement_id' => $agent->etablissement_id, 'type' => ['annuel', 'maladie', 'exceptionnel'][$i % 3],
+                'date_debut' => $debut->toDateString(), 'date_fin' => $debut->copy()->addDays(4)->toDateString(), 'nombre_jours' => 5,
+                'motif' => 'Demande de l\'année '.$annee->libelle, 'statut' => $i % 4 === 3 ? 'rejetee' : 'approuvee', 'decision_par' => $admin->id, 'date_decision' => $debut->copy()->subDays(10)]);
+        }
+        foreach ($agents->random(min(3, $agents->count())) as $i => $agent) {
+            $type = ['retraite', 'demission', 'disponibilite'][$i];
+            CessationService::create(['agent_id' => $agent->id, 'etablissement_id' => $agent->etablissement_id,
+                'numero' => 'CS-'.Carbon::parse($annee->date_fin)->year.'-H'.($i + 1), 'type' => $type,
+                'date_cessation' => Carbon::parse($annee->date_debut)->addMonths(3 + $i * 2)->toDateString(),
+                'motif' => 'Cessation enregistrée au titre de l\'année '.$annee->libelle.' (historique).', 'statut' => 'validee',
+                'signalee_par' => $admin->id, 'validee_par' => $admin->id, 'date_validation' => Carbon::parse($annee->date_debut)->addMonths(3 + $i * 2)]);
+        }
     }
 
     protected function presences(Etablissement $lnlm, array $agentsComptes): void

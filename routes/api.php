@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AgentController as Agents;
 use App\Http\Controllers\Api\AuthController as Auth;
 use App\Http\Controllers\Api\CessationController as Cessations;
 use App\Http\Controllers\Api\CongeController as Conges;
+use App\Http\Controllers\Api\DocumentController as Documents;
 use App\Http\Controllers\Api\DebutCoursController as DebutsCours;
 use App\Http\Controllers\Api\EtablissementController as Etablissements;
 use App\Http\Controllers\Api\MonEspaceController as MonEspace;
@@ -99,6 +100,9 @@ Route::prefix('v1')->group(function () {
 
         // Rapports
         Route::get('rapports/synthese', [Rapports::class, 'synthese'])->middleware('option:RAPPORTS');
+
+        // Documents officiels imprimables (habilitation et périmètre vérifiés par type).
+        Route::get('documents/{type}/{id}', [Documents::class, 'show'])->whereNumber('id');
 
         // Référentiels
         Route::get('referentiels/{type}', [Referentiels::class, 'index'])->middleware('option:REFERENTIELS');

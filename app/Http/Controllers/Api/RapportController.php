@@ -18,10 +18,10 @@ class RapportController extends Controller
     public function synthese(Request $request): JsonResponse
     {
         $user = $request->user();
-        $debut = $request->query('date_debut', now()->startOfMonth()->toDateString());
-        $fin = $request->query('date_fin', now()->toDateString());
+        $debut = $request->query('date_debut', \App\Support\AnneeConsultee::debut() ?? now()->startOfMonth()->toDateString());
+        $fin = $request->query('date_fin', \App\Support\AnneeConsultee::dateReference()->toDateString());
 
-        $agents = Perimetre::filtrer(Agent::query(), $user, 'etablissement_id', 'id')->where('statut', 'actif')
+        $agents = Perimetre::selonEtablissement(Agent::query(), $user, 'etablissement_id', 'id')->where('statut', 'actif')
             ->with(['etablissement:id,province_id,type', 'discipline:id,libelle', 'grade:id,code'])->get();
 
         $provinces = Province::orderBy('nom')->get();
@@ -50,22 +50,41 @@ class RapportController extends Controller
             return ['tranche' => $lib, 'hommes' => $l->where('sexe', 'M')->count(), 'femmes' => $l->where('sexe', 'F')->count()];
         })->values();
 
-        $departsRetraite = Perimetre::filtrer(Agent::query(), $user, 'etablissement_id', 'id')->where('statut', 'actif')
-            ->whereNotNull('date_naissance')->where('date_naissance', '<=', now()->subYears(59)->toDateString())
-            ->with('etablissement:id,nom')->orderBy('date_naissance')->limit(50)->get(['id', 'matricule', 'nom', 'prenom', 'date_naissance', 'etablissement_id']);
+        // À prévoir : agents encore en activité qui atteignent 62 ans dans les douze mois, ou qui les ont déjà atteints.
+        $departsRetraite = Perimetre::selonEtablissement(Agent::query(), $user, 'etablissement_id', 'id')->where('statut', 'actif')
+            ->whereNotNull('date_naissance')->where('date_naissance', '<=', now()->subYears(Agent::AGE_LIMITE_RETRAITE - 1)->toDateString())
+            ->with('etablissement:id,nom')->orderBy('date_naissance')->limit(50)
+            ->get(['id', 'matricule', 'nom', 'prenom', 'date_naissance', 'etablissement_id'])
+            ->map(function (Agent $a) {
+                $limite = $a->date_naissance->copy()->addYears(Agent::AGE_LIMITE_RETRAITE);
 
-        $presences = Perimetre::filtrer(Presence::query(), $user)->whereBetween('date', [$debut, $fin])
+                return [
+                    'id' => $a->id,
+                    'matricule' => $a->matricule,
+                    'nom_complet' => $a->nom_complet,
+                    'date_naissance' => $a->date_naissance->toDateString(),
+                    'date_limite' => $limite->toDateString(),
+                    'limite_atteinte' => $limite->lte(today()),
+                    'etablissement' => $a->etablissement ? ['nom' => $a->etablissement->nom] : null,
+                ];
+            })->values();
+
+        $presences = Perimetre::selonEtablissement(Presence::query(), $user)->whereBetween('date', [$debut, $fin])
             ->selectRaw('statut, COUNT(*) as total')->groupBy('statut')->pluck('total', 'statut')->map(fn ($v) => (int) $v);
         $totalP = $presences->sum();
 
-        $nonPrise = Perimetre::filtrer(Affectation::query(), $user)->with(['agent:id,matricule,nom,prenom', 'etablissement:id,nom'])
+        $nonPrise = Perimetre::selonEtablissement(Affectation::query(), $user)->with(['agent:id,matricule,nom,prenom', 'etablissement:id,nom'])
             ->where('statut', 'en_attente_prise_service')->orderBy('date_effet')->limit(100)->get();
 
-        $cessations = Perimetre::filtrer(CessationService::query(), $user)->whereBetween('date_cessation', [now()->startOfYear()->toDateString(), now()->toDateString()])
+        $cessations = Perimetre::selonEtablissement(CessationService::query(), $user)->whereBetween('date_cessation', [now()->startOfYear()->toDateString(), now()->toDateString()])
             ->selectRaw('type, statut, COUNT(*) as total')->groupBy('type', 'statut')->get()
             ->map(fn ($c) => ['type' => CessationService::TYPES[$c->type] ?? $c->type, 'statut' => $c->statut, 'total' => (int) $c->total]);
 
-        $etabs = Perimetre::filtrer(Etablissement::query(), $user, 'id', null)->withCount(['agents as effectif' => fn ($a) => $a->where('statut', 'actif')])
+        $etabs = Perimetre::filtrer(Etablissement::query(), $user, 'id', null);
+        if (($choix = \App\Support\EtablissementConsulte::id($user)) !== null) {
+            $etabs->where('id', $choix);
+        }
+        $etabs = $etabs->withCount(['agents as effectif' => fn ($a) => $a->where('statut', 'actif')])
             ->get(['id', 'nom', 'type', 'effectif_eleves'])
             ->map(fn ($e) => [
                 'etablissement' => $e->nom,

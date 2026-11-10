@@ -50,22 +50,32 @@ class ReferentielController extends Controller
     public function listes(Request $request): JsonResponse
     {
         $user = $request->user();
+        $user->loadMissing('agent:id,etablissement_id');
+        if ($user->portee() === 'personnel') {
+            $rattache = $user->etablissement_id ?: $user->agent?->etablissement_id;
+            $ids = $rattache ? [$rattache] : [];
+        } else {
+            $ids = Perimetre::etablissementIds($user);
+        }
         $etabs = Etablissement::query()->where('actif', true)->orderBy('nom');
-        $ids = $user->portee() === 'personnel'
-            ? array_filter([$user->etablissement_id])
-            : Perimetre::etablissementIds($user);
-        if ($ids !== null && ! $user->aUneOption(['AFFECTATIONS', 'ETABLISSEMENTS'])) {
+        if ($ids !== null) {
             $etabs->whereIn('id', $ids ?: [0]);
+        }
+        $etablissements = $etabs->get(['id', 'code', 'nom', 'type', 'province_id', 'ville']);
+        $provinces = Province::orderBy('nom')->get(['id', 'code', 'nom', 'chef_lieu']);
+        if ($ids !== null) {
+            $pids = $etablissements->pluck('province_id')->unique()->filter()->all();
+            $provinces = $provinces->whereIn('id', $pids ?: [0])->values();
         }
 
         return response()->json([
-            'provinces' => Province::orderBy('nom')->get(['id', 'code', 'nom', 'chef_lieu']),
+            'provinces' => $provinces,
             'corps' => Corps::orderBy('libelle')->get(['id', 'code', 'libelle', 'categorie']),
             'grades' => Grade::orderBy('code')->get(['id', 'code', 'libelle', 'hierarchie']),
             'disciplines' => Discipline::orderBy('libelle')->get(['id', 'code', 'libelle']),
             'fonctions' => Fonction::orderBy('libelle')->get(['id', 'code', 'libelle', 'enseignante']),
             'annees_scolaires' => AnneeScolaire::orderByDesc('date_debut')->get(['id', 'libelle', 'active', 'date_debut', 'date_fin']),
-            'etablissements' => $etabs->get(['id', 'code', 'nom', 'type', 'province_id', 'ville']),
+            'etablissements' => $etablissements,
             'profils' => Profil::orderBy('libelle')->get(['id', 'code', 'libelle', 'portee']),
             'ministere' => config('grhmen.ministere'),
             'feries' => \App\Support\Calendrier::feriesEntre(now()->startOfYear(), now()->addYear()->endOfYear()),

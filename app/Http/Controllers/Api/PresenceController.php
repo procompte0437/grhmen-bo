@@ -105,7 +105,8 @@ class PresenceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = Presence::query()->with($this->relations);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
+        \App\Support\AnneeConsultee::dansAnnee($q, 'date');
         Recherche::appliquer($q, ['agent.nom', 'agent.prenom', 'agent.matricule'], $request->query('q'));
         foreach (['statut', 'validation', 'etablissement_id', 'agent_id', 'mode'] as $f) {
             if ($v = $request->query($f)) {
@@ -207,7 +208,7 @@ class PresenceController extends Controller
         ]);
 
         $q = Presence::whereIn('id', $donnees['ids'])->where('validation', 'en_attente');
-        Perimetre::filtrer($q, $user);
+        Perimetre::selonEtablissement($q, $user);
         $presences = $q->get();
         foreach ($presences as $p) {
             $p->update([
@@ -226,11 +227,12 @@ class PresenceController extends Controller
     /** Taux de présence par établissement sur une période. */
     public function statistiques(Request $request): JsonResponse
     {
-        $debut = $request->query('date_debut', now()->startOfMonth()->toDateString());
-        $fin = $request->query('date_fin', now()->toDateString());
+        $reference = \App\Support\AnneeConsultee::dateReference();
+        $debut = $request->query('date_debut', $reference->copy()->startOfMonth()->toDateString());
+        $fin = $request->query('date_fin', $reference->toDateString());
 
         $q = Presence::query()->whereBetween('date', [$debut, $fin]);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
         $lignes = $q->select('etablissement_id', 'statut', DB::raw('COUNT(*) as total'))->groupBy('etablissement_id', 'statut')->get();
 
         $etabs = Etablissement::whereIn('id', $lignes->pluck('etablissement_id')->unique())->pluck('nom', 'id');

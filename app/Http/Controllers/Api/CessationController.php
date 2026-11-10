@@ -25,7 +25,8 @@ class CessationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = CessationService::query()->with($this->relations);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
+        \App\Support\AnneeConsultee::dansAnnee($q, 'date_cessation');
         Recherche::appliquer($q, ['numero', 'agent.nom', 'agent.prenom', 'agent.matricule'], $request->query('q'));
         foreach (['statut', 'type', 'etablissement_id', 'agent_id'] as $f) {
             if ($v = $request->query($f)) {
@@ -39,6 +40,7 @@ class CessationController extends Controller
     public function show(Request $request, CessationService $cessation): JsonResponse
     {
         Perimetre::exiger($request->user(), $cessation->etablissement_id, $cessation->agent_id);
+        Perimetre::exigerConsulte($request->user(), $cessation->etablissement_id);
 
         return response()->json(['data' => $cessation->load($this->relations)]);
     }
@@ -53,6 +55,7 @@ class CessationController extends Controller
         ]);
         $agent = Agent::findOrFail($donnees['agent_id']);
         Perimetre::exiger($request->user(), $agent->etablissement_id);
+        Perimetre::exigerConsulte($request->user(), $agent->etablissement_id);
 
         if (CessationService::where('agent_id', $agent->id)->where('statut', 'signalee')->exists()) {
             return response()->json(['message' => 'Une cessation est déjà en cours de traitement pour cet agent.'], 422);
@@ -78,7 +81,7 @@ class CessationController extends Controller
         $q = Affectation::with('agent', 'etablissement:id,nom')->where('statut', 'en_attente_prise_service')
             ->where('date_effet', '<=', now()->subDays($delai)->toDateString())
             ->whereDoesntHave('prisesService', fn ($p) => $p->whereIn('statut', ['declaree', 'confirmee']));
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
 
         $generees = collect();
         DB::transaction(function () use ($q, $request, $delai, &$generees) {

@@ -22,7 +22,8 @@ class CongeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $q = Conge::query()->with($this->relations);
-        Perimetre::filtrer($q, $request->user());
+        Perimetre::selonEtablissement($q, $request->user());
+        \App\Support\AnneeConsultee::chevauche($q, 'date_debut', 'date_fin');
         Recherche::appliquer($q, ['agent.nom', 'agent.prenom', 'agent.matricule'], $request->query('q'));
         foreach (['statut', 'type', 'etablissement_id', 'agent_id'] as $f) {
             if ($v = $request->query($f)) {
