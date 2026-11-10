@@ -74,7 +74,7 @@ class CessationController extends Controller
     public function genererNonPriseService(Request $request): JsonResponse
     {
         $request->validate(['delai_jours' => ['nullable', 'integer', 'min:1', 'max:365']]);
-        $delai = (int) ($request->input('delai_jours') ?: 30);
+        $delai = (int) ($request->input('delai_jours') ?: config('grhmen.delai_non_prise_service', 30));
         $q = Affectation::with('agent', 'etablissement:id,nom')->where('statut', 'en_attente_prise_service')
             ->where('date_effet', '<=', now()->subDays($delai)->toDateString())
             ->whereDoesntHave('prisesService', fn ($p) => $p->whereIn('statut', ['declaree', 'confirmee']));

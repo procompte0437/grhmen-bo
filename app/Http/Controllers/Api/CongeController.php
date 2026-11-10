@@ -122,7 +122,7 @@ class CongeController extends Controller
             // Les jours de congé approuvés sont portés en « absence justifiée » sur la feuille de présence.
             if ($donnees['approuver'] && $conge->etablissement_id) {
                 for ($d = $conge->date_debut->copy(); $d->lte($conge->date_fin); $d->addDay()) {
-                    if ($d->isWeekend()) {
+                    if (! \App\Support\Calendrier::estOuvre($d)) {
                         continue;
                     }
                     Presence::updateOrCreate(['agent_id' => $conge->agent_id, 'date' => $d->toDateString()], [

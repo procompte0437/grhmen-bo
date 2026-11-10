@@ -67,6 +67,8 @@ class ReferentielController extends Controller
             'annees_scolaires' => AnneeScolaire::orderByDesc('date_debut')->get(['id', 'libelle', 'active', 'date_debut', 'date_fin']),
             'etablissements' => $etabs->get(['id', 'code', 'nom', 'type', 'province_id', 'ville']),
             'profils' => Profil::orderBy('libelle')->get(['id', 'code', 'libelle', 'portee']),
+            'ministere' => config('grhmen.ministere'),
+            'feries' => \App\Support\Calendrier::feriesEntre(now()->startOfYear(), now()->addYear()->endOfYear()),
             'enums' => [
                 'categories' => Agent::CATEGORIES,
                 'statuts_agent' => Agent::STATUTS,

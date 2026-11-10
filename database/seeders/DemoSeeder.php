@@ -55,7 +55,7 @@ class DemoSeeder extends Seeder
         ]);
 
         // ---- Personnel des établissements
-        $plan = ['lycee' => 8, 'lycee_technique' => 6, 'college' => 6, 'ecole_primaire' => 5, 'direction_centrale' => 5, 'academie' => 3];
+        $plan = ['lycee' => 8, 'lycee_technique' => 6, 'college' => 6, 'ecole_primaire' => 5, 'ecole_pre_primaire' => 3, 'direction_centrale' => 4, 'academie' => 3];
         $tous = collect();
         foreach ($etabs as $code => $etab) {
             $n = $plan[$etab->type];
@@ -67,14 +67,14 @@ class DemoSeeder extends Seeder
         // ---- Personnes nommées des comptes de démonstration
         $lnlm = $etabs['LNLM'];
         $comptes = [
-            ['drh@grhmen.ga', 'DRH', $etabs['DRH-MEN'], ['nom' => 'MOUSSAVOU', 'prenom' => 'Albertine', 'sexe' => 'F', 'categorie' => 'administratif', 'fonction' => 'DIR_CENT', 'corps' => 'ADM', 'grade' => 'A1']],
-            ['gestionnaire@grhmen.ga', 'GESTIONNAIRE_RH', $etabs['DRH-MEN'], ['nom' => 'NDONG', 'prenom' => 'Rodrigue', 'sexe' => 'M', 'categorie' => 'administratif', 'fonction' => 'CHEF_SERV', 'corps' => 'ATT', 'grade' => 'A2']],
+            ['drh@grhmen.ga', 'DRH', $etabs['DGRH'], ['nom' => 'MOUSSAVOU', 'prenom' => 'Albertine', 'sexe' => 'F', 'categorie' => 'administratif', 'fonction' => 'DIR_CENT', 'corps' => 'ADM', 'grade' => 'A1']],
+            ['gestionnaire@grhmen.ga', 'GESTIONNAIRE_RH', $etabs['DGRH'], ['nom' => 'NDONG', 'prenom' => 'Rodrigue', 'sexe' => 'M', 'categorie' => 'administratif', 'fonction' => 'CHEF_SERV', 'corps' => 'ATT', 'grade' => 'A2']],
             ['dap.estuaire@grhmen.ga', 'DAP', $etabs['AP-EST'], ['nom' => 'OBAME', 'prenom' => 'Ghislain', 'sexe' => 'M', 'categorie' => 'administratif', 'fonction' => 'DAP', 'corps' => 'ADM', 'grade' => 'A1']],
             ['proviseur@grhmen.ga', 'CHEF_ETAB', $lnlm, ['nom' => 'MINTSA', 'prenom' => 'Hervé', 'sexe' => 'M', 'categorie' => 'enseignant_secondaire', 'fonction' => 'PROV', 'corps' => 'PLC', 'grade' => 'A1', 'discipline' => 'PHILO']],
             ['censeur@grhmen.ga', 'CENSEUR', $lnlm, ['nom' => 'ELLA', 'prenom' => 'Odile', 'sexe' => 'F', 'categorie' => 'enseignant_secondaire', 'fonction' => 'CENS', 'corps' => 'PLC', 'grade' => 'A1', 'discipline' => 'FR']],
             ['enseignant@grhmen.ga', 'ENSEIGNANT', $lnlm, ['nom' => 'NGUEMA', 'prenom' => 'Marie-Claire', 'sexe' => 'F', 'categorie' => 'enseignant_secondaire', 'fonction' => 'ENS', 'corps' => 'PCEG', 'grade' => 'A2', 'discipline' => 'MATH']],
             ['directeur.ecole@grhmen.ga', 'CHEF_ETAB', $etabs['EP-GLASS'], ['nom' => 'KOUMBA', 'prenom' => 'Pélagie', 'sexe' => 'F', 'categorie' => 'enseignant_primaire', 'fonction' => 'DIR_ECOLE', 'corps' => 'INST', 'grade' => 'B1', 'discipline' => 'POLY']],
-            ['agent@grhmen.ga', 'AGENT_ADMIN', $etabs['DRH-MEN'], ['nom' => 'BOUSSOUGOU', 'prenom' => 'Landry', 'sexe' => 'M', 'categorie' => 'administratif', 'fonction' => 'AGENT_ADM', 'corps' => 'SEC', 'grade' => 'B2']],
+            ['agent@grhmen.ga', 'AGENT_ADMIN', $etabs['DGRH'], ['nom' => 'BOUSSOUGOU', 'prenom' => 'Landry', 'sexe' => 'M', 'categorie' => 'administratif', 'fonction' => 'AGENT_ADM', 'corps' => 'SEC', 'grade' => 'B2']],
         ];
         $agentsComptes = [];
         foreach ($comptes as [$email, $profil, $etab, $attrs]) {
@@ -191,21 +191,35 @@ class DemoSeeder extends Seeder
             ['EP-OYEM', 'École publique d\'Oyem centre', 'ecole_primaire', 'G9', 'Oyem', 560, 1.6000, 11.5800],
             ['LYC-LAMB', 'Lycée public de Lambaréné', 'lycee', 'G3', 'Lambaréné', 1100, -0.7000, 10.2333],
             ['LYC-MOUILA', 'Lycée public de Mouila', 'lycee', 'G4', 'Mouila', 1000, -1.8667, 11.0556],
-            ['DRH-MEN', 'Direction des ressources humaines (DRH)', 'direction_centrale', 'G1', 'Libreville', null, 0.3900, 9.4500],
-            ['DGES', 'Direction générale de l\'enseignement scolaire', 'direction_centrale', 'G1', 'Libreville', null, 0.3910, 9.4510],
-            ['AP-EST', 'Académie provinciale de l\'Estuaire', 'academie', 'G1', 'Libreville', null, 0.3950, 9.4550],
-            ['AP-HO', 'Académie provinciale du Haut-Ogooué', 'academie', 'G2', 'Franceville', null, -1.6350, 13.5850],
+            ["EPP-GLASS", "École pré-primaire publique de Glass", "ecole_pre_primaire", "G1", "Libreville", 180, 0.3810, 9.4420],
+            // Structures centrales (education-nationale.gouv.ga, « Nos directions et services »).
+            ["SG-MEN", "Secrétariat Général", "direction_centrale", "G1", "Libreville", null, 0.3900, 9.4500, "+241 01 72 28 30", "Immeuble des 9 étages"],
+            ["DGRH", "Direction Générale des Ressources Humaines (DGRH)", "direction_centrale", "G1", "Libreville", null, 0.3900, 9.4500, "+241 04 12 91 91", "Immeuble des 9 étages"],
+            ["DGESN", "Direction Générale de l'Enseignement scolaire et Normal", "direction_centrale", "G1", "Libreville", null, 0.3901, 9.4501, "+241 07 23 13 61", "Immeuble des 9 étages"],
+            ["IGS", "Inspection Générale des Services", "direction_centrale", "G1", "Libreville", null, 0.3902, 9.4502, "+241 06 24 64 62", "Immeuble des 9 étages"],
+            ["DCSI", "Direction Centrale des Systèmes d'Information", "direction_centrale", "G1", "Libreville", null, 0.3903, 9.4503, "+241 74 84 62 02", "Immeuble des 9 étages"],
+            // Directions d'académie provinciales.
+            ["AP-EST", "Direction d'Académie Provinciale de l'Estuaire", "academie", "G1", "Libreville", null, 0.3950, 9.4550, "+241 01 74 01 10", "Boulevard Jean-Paul II"],
+            ["AP-HO", "Direction d'Académie Provinciale du Haut-Ogooué", "academie", "G2", "Franceville", null, -1.6350, 13.5850, "+241 01 67 73 25"],
+            ["AP-MO", "Direction d'Académie Provinciale du Moyen-Ogooué", "academie", "G3", "Lambaréné", null, -0.7000, 10.2400, "+241 01 58 10 30"],
+            ["AP-NGO", "Direction d'Académie Provinciale de la Ngounié", "academie", "G4", "Mouila", null, -1.8650, 11.0560, "+241 01 86 11 57"],
+            ["AP-NYA", "Direction d'Académie Provinciale de la Nyanga", "academie", "G5", "Tchibanga", null, -2.9330, 11.0170, "+241 01 82 02 26"],
+            ["AP-OI", "Direction d'Académie Provinciale de l'Ogooué-Ivindo", "academie", "G6", "Makokou", null, 0.5700, 12.8600, "+241 01 90 33 11"],
+            ["AP-OL", "Direction d'Académie Provinciale de l'Ogooué-Lolo", "academie", "G7", "Koulamoutou", null, -1.1350, 12.4700, "+241 01 65 50 77"],
+            ["AP-OM", "Direction d'Académie Provinciale de l'Ogooué-Maritime", "academie", "G8", "Port-Gentil", null, -0.7200, 8.7800, "+241 01 55 20 49"],
+            ["AP-WN", "Direction d'Académie Provinciale du Woleu-Ntem", "academie", "G9", "Oyem", null, 1.6000, 11.5800, "+241 01 98 61 02"],
         ];
         $etabs = [];
-        foreach ($liste as [$code, $nom, $type, $prov, $ville, $eleves, $lat, $lng]) {
+        foreach ($liste as $ligne) {
+            [$code, $nom, $type, $prov, $ville, $eleves, $lat, $lng, $tel, $adresse] = $ligne + [8 => null, 9 => null];
             $etabs[$code] = Etablissement::updateOrCreate(['code' => $code], [
                 'nom' => $nom, 'type' => $type, 'province_id' => $this->ref['province'][$prov], 'ville' => $ville,
                 'effectif_eleves' => $eleves, 'latitude' => $lat, 'longitude' => $lng, 'actif' => true,
-                'telephone' => '+241 0'.mt_rand(1, 7).' '.mt_rand(10, 99).' '.mt_rand(10, 99).' '.mt_rand(10, 99),
+                'telephone' => $tel ?? '+241 0'.mt_rand(1, 7).' '.mt_rand(10, 99).' '.mt_rand(10, 99).' '.mt_rand(10, 99),
                 'email' => strtolower(str_replace(['-', ' '], '', $code)).'@education.gouv.ga',
                 'heure_debut' => in_array($type, ['direction_centrale', 'academie'], true) ? '07:30:00' : '07:30:00',
                 'heure_fin' => in_array($type, ['direction_centrale', 'academie'], true) ? '15:30:00' : '17:00:00',
-                'adresse' => 'BP '.mt_rand(100, 9999).', '.$ville,
+                'adresse' => $adresse ? $adresse.', '.$ville : 'BP '.mt_rand(100, 9999).', '.$ville,
             ]);
         }
 
@@ -216,7 +230,7 @@ class DemoSeeder extends Seeder
     {
         $sexe = $attrs['sexe'] ?? (mt_rand(0, 1) ? 'M' : 'F');
         $categorie = $attrs['categorie'] ?? match ($etab->type) {
-            'ecole_primaire' => 'enseignant_primaire',
+            'ecole_primaire', 'ecole_pre_primaire' => 'enseignant_primaire',
             'direction_centrale', 'academie' => 'administratif',
             default => 'enseignant_secondaire',
         };

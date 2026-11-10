@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Etablissement extends Model
 {
     public const TYPES = [
+        'ecole_pre_primaire' => 'École pré-primaire',
         'ecole_primaire' => 'École primaire',
         'college' => 'Collège (CES)',
         'lycee' => 'Lycée',
-        'lycee_technique' => 'Lycée technique',
+        'lycee_technique' => 'Lycée technique / professionnel',
         'direction_centrale' => 'Direction centrale',
-        'academie' => 'Académie provinciale',
+        'academie' => 'Direction d\'académie provinciale',
     ];
 
     protected $fillable = [

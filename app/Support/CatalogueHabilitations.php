@@ -107,7 +107,7 @@ class CatalogueHabilitations
                 'options' => ['*'],
             ],
             'DRH' => [
-                'libelle' => 'Directeur des ressources humaines',
+                'libelle' => 'Directeur général des ressources humaines (DGRH)',
                 'description' => 'Pilote le personnel au niveau national : affectations, cessations, congés, rapports.',
                 'portee' => 'national',
                 'systeme' => false,
@@ -121,7 +121,7 @@ class CatalogueHabilitations
                 ],
             ],
             'GESTIONNAIRE_RH' => [
-                'libelle' => 'Gestionnaire RH (administration centrale)',
+                'libelle' => 'Gestionnaire RH (DGRH)',
                 'description' => 'Tient les dossiers du personnel et prépare les affectations.',
                 'portee' => 'national',
                 'systeme' => false,

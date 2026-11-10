@@ -51,7 +51,7 @@ class PresenceController extends Controller
             if ($presence && $presence->heure_arrivee) {
                 return response()->json(['message' => 'Votre arrivée est déjà pointée aujourd\'hui à '.substr($presence->heure_arrivee, 0, 5).'.'], 422);
             }
-            $limite = Carbon::parse($aujourdhui.' '.($agent->etablissement->heure_debut ?? '07:30:00'))->addMinutes(self::TOLERANCE_RETARD);
+            $limite = Carbon::parse($aujourdhui.' '.($agent->etablissement->heure_debut ?? '07:30:00'))->addMinutes((int) config("grhmen.tolerance_retard", self::TOLERANCE_RETARD));
             $presence = Presence::updateOrCreate(
                 ['agent_id' => $agent->id, 'date' => $aujourdhui],
                 [
@@ -273,13 +273,6 @@ class PresenceController extends Controller
 
     public static function joursOuvres(Carbon $debut, Carbon $fin): int
     {
-        $n = 0;
-        for ($d = $debut->copy(); $d->lte($fin); $d->addDay()) {
-            if (! $d->isWeekend()) {
-                $n++;
-            }
-        }
-
-        return $n;
+        return \App\Support\Calendrier::joursOuvres($debut, $fin);
     }
 }

@@ -67,9 +67,8 @@ class ReferentielSeeder extends Seeder
             Fonction::updateOrCreate(['code' => $code], ['libelle' => $libelle, 'enseignante' => $ens]);
         }
 
-        // Année scolaire en cours (septembre → juillet) et la précédente.
-        $debut = now()->month >= 9 ? now()->year : now()->year - 1;
-        AnneeScolaire::updateOrCreate(['libelle' => ($debut - 1).'-'.$debut], ['date_debut' => ($debut - 1).'-09-15', 'date_fin' => $debut.'-07-15', 'active' => false]);
-        AnneeScolaire::updateOrCreate(['libelle' => $debut.'-'.($debut + 1)], ['date_debut' => $debut.'-09-15', 'date_fin' => ($debut + 1).'-07-15', 'active' => true]);
+        // Années scolaires (calendrier officiel publié sur education-nationale.gouv.ga) : rentrée des classes et fin du 3e trimestre.
+        AnneeScolaire::updateOrCreate(['libelle' => '2025-2026'], ['date_debut' => '2025-09-08', 'date_fin' => '2026-07-31', 'active' => false]);
+        AnneeScolaire::updateOrCreate(['libelle' => '2026-2027'], ['date_debut' => '2026-09-07', 'date_fin' => '2027-07-31', 'active' => true]);
     }
 }
